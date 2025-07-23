@@ -1,43 +1,66 @@
-from bs4 import BeautifulSoup
 import requests
+from bs4 import BeautifulSoup
 import json
 
-# Example: loading page
-response = requests.get("https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/")
+url = "https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/"
+
+# Step 1: Load the page
+response = requests.get(url)
+response.raise_for_status()
 soup = BeautifulSoup(response.text, "html.parser")
 
-# For your sample structure (pretend we already loaded soup)
-# soup = BeautifulSoup(html, "html.parser")
+# Step 2: Find the main content area
+content = soup.select_one("div#a-content div#c-article div.grid-wide.grid-content")
 
-# Navigate to the core content section
-container = soup.select_one("div#a-content div#c-article div.grid-wide.grid-content")
+# Step 3: Set up category parsing
+categories = {
+    "A. Under Review: Planning Commission": [],
+    "A. Under Review: Board of Supervisors": [],
+    "B. Approved": [],
+    "C.  Under Construction": []
+}
 
-if container:
-    # Now you can parse p and ul tags inside this area
-    categories = {
-        "A. Under Review": [],
-        "B. Approved": [],
-        "C.  Under Construction": []
-    }
+current_category = None
+in_under_review = False
+planning_count = 0
+supervisors_count = 0
 
-    current_category = None
-    for tag in container.find_all(['p', 'ul']):
-        if tag.name == 'p':
-            text = tag.get_text(strip=True)
-            if text.startswith("A. Under Review"):
-                current_category = "A. Under Review"
-            elif text.startswith("B") and "Approved" in text:
-                current_category = "B. Approved"
-            elif text.startswith("C") and "Under Construction" in text:
-                current_category = "C.  Under Construction"
-        elif tag.name == 'ul' and current_category:
-            for li in tag.find_all('li'):
-                for subli in li.find_all('li'):
-                    categories[current_category].append(subli.get_text(strip=True))
-                if not li.find_all('li'):
-                    categories[current_category].append(li.get_text(strip=True))
+for tag in content.find_all(['p', 'ul']):
+    text = tag.get_text(strip=True)
 
-    print(json.dumps(categories, indent=4))
+    # Detect which section we're in
+    if text.startswith("A. Under Review"):
+        in_under_review = True
+        current_category = "A. Under Review: Planning Commission"
+        continue
+    elif text.startswith("B") and "Approved" in text:
+        in_under_review = False
+        current_category = "B. Approved"
+        continue
+    elif text.startswith("C") and "Under Construction" in text:
+        in_under_review = False
+        current_category = "C.  Under Construction"
+        continue
 
-else:
-    print("Could not find the main content area.")
+    if tag.name == 'ul' and current_category:
+        for li in tag.find_all('li', recursive=False):
+            # Check if <ol> exists inside this <li> (Planning/Board split)
+            subitems = li.find_all('li')
+            if subitems:
+                label = li.find('strong')
+                if label and "Supervisor" in label.get_text():
+                    current_category = "A. Under Review: Board of Supervisors"
+                elif label and "Planning" in label.get_text():
+                    current_category = "A. Under Review: Planning Commission"
+
+                for subli in subitems:
+                    entry = subli.get_text(strip=True)
+                    categories[current_category].append(entry)
+            else:
+                # Regular item (non-nested)
+                entry = li.get_text(strip=True)
+                categories[current_category].append(entry)
+
+# Step 4: Output as pretty JSON
+print(json.dumps(categories, indent=2))
+
