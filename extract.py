@@ -1,18 +1,18 @@
 import requests
 from bs4 import BeautifulSoup
+import re
 import json
 
-url = "https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/"
-
 # Step 1: Load the page
+url = "https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/"
 response = requests.get(url)
 response.raise_for_status()
 soup = BeautifulSoup(response.text, "html.parser")
 
-# Step 2: Find the main content area
+# Step 2: Navigate to the structured content block
 content = soup.select_one("div#a-content div#c-article div.grid-wide.grid-content")
 
-# Step 3: Set up category parsing
+# Step 3: Define categories and containers
 categories = {
     "A. Under Review: Planning Commission": [],
     "A. Under Review: Board of Supervisors": [],
@@ -20,31 +20,44 @@ categories = {
     "C.  Under Construction": []
 }
 
-current_category = None
-in_under_review = False
-planning_count = 0
-supervisors_count = 0
+# Step 4: Address parsing helper
+street_types = [
+    "St", "Street", "Ave", "Avenue", "Rd", "Road", "Ln", "Lane", "Pike", "Pk",
+    "Dr", "Drive", "Ct", "Court", "Blvd", "Way", "Circle", "Cir", "Terrace"
+]
+street_pattern = re.compile(rf"^(.+?\b(?:{'|'.join(street_types)})\b)[\.\s]*(.*)$")
 
+def split_entry(text):
+    match = street_pattern.match(text.strip())
+    if match:
+        address, description = match.groups()
+        return {
+            "address": f"{address.strip()}, Lower Salford, PA 19438",
+            "description": description.strip()
+        }
+    else:
+        return {
+            "address": "",
+            "description": text.strip()
+        }
+
+# Step 5: Parse sections
+current_category = None
 for tag in content.find_all(['p', 'ul']):
     text = tag.get_text(strip=True)
 
-    # Detect which section we're in
     if text.startswith("A. Under Review"):
-        in_under_review = True
         current_category = "A. Under Review: Planning Commission"
         continue
     elif text.startswith("B") and "Approved" in text:
-        in_under_review = False
         current_category = "B. Approved"
         continue
     elif text.startswith("C") and "Under Construction" in text:
-        in_under_review = False
         current_category = "C.  Under Construction"
         continue
 
     if tag.name == 'ul' and current_category:
         for li in tag.find_all('li', recursive=False):
-            # Check if <ol> exists inside this <li> (Planning/Board split)
             subitems = li.find_all('li')
             if subitems:
                 label = li.find('strong')
@@ -55,12 +68,10 @@ for tag in content.find_all(['p', 'ul']):
 
                 for subli in subitems:
                     entry = subli.get_text(strip=True)
-                    categories[current_category].append(entry)
+                    categories[current_category].append(split_entry(entry))
             else:
-                # Regular item (non-nested)
                 entry = li.get_text(strip=True)
-                categories[current_category].append(entry)
+                categories[current_category].append(split_entry(entry))
 
-# Step 4: Output as pretty JSON
+# Step 6: Output structured JSON
 print(json.dumps(categories, indent=2))
-
