@@ -8,6 +8,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 from shapely.geometry import Point
 import contextily as ctx
+from matplotlib.offsetbox import AnchoredText
 
 # ---------- Inputs ----------
 BOUNDARY_GEOJSON = "lower_salford_boundary.geojson"
@@ -57,9 +58,14 @@ for cat, grp in gdf_points.groupby("category"):
     grp.plot(ax=ax, marker='o', alpha=0.85, label=cat)
 
 # Cosmetics
-ax.set_title("Lower Salford Development Map", fontsize=16)
+ax.set_title("Lower Salford Township - Eye on Development", fontsize=16)
 ax.legend(title="Development Status", loc='lower right')
 ax.set_axis_off()
+
+
+stamp = AnchoredText("Last updated: June 26, 2025", loc='lower left', prop=dict(size=8), frameon=True)
+stamp.patch.set_alpha(0.7)
+ax.add_artist(stamp)
 
 # ---------- Save ----------
 fig.savefig(OUT_JPG, dpi=300, bbox_inches='tight')
