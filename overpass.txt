@@ -1,0 +1,8 @@
+[out:json][timeout:25];
+
+// Directly reference relation by ID
+relation(3107908);
+out body;
+>;
+out skel qt;
+
