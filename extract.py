@@ -19,7 +19,7 @@ class ExtractFeature:
             "A. Under Review: Planning Commission": [],
             "A. Under Review: Board of Supervisors": [],
             "B. Approved": [],
-            "C.  Under Construction": []
+            "C. Under Construction": []
         }
 
         # Step 4: Address parsing helper
@@ -34,11 +34,13 @@ class ExtractFeature:
             if match:
                 address, description = match.groups()
                 return {
-                    "address": f"{address.strip()}, Lower Salford, PA 19438",
+                    "key": text,
+                    "address": address.strip(),
                     "description": description.strip()
                 }
             else:
                 return {
+                    "key": text,
                     "address": "",
                     "description": text.strip()
                 }
@@ -55,7 +57,7 @@ class ExtractFeature:
                 current_category = "B. Approved"
                 continue
             elif text.startswith("C") and "Under Construction" in text:
-                current_category = "C.  Under Construction"
+                current_category = "C. Under Construction"
                 continue
 
             if tag.name == 'ul' and current_category:
