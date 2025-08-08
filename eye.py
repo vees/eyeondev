@@ -21,6 +21,12 @@ class EyeOnDev:
         render_result = self.renderer.render(geocode_result)
 
         return render_result
+
+    def output_image(self):
+        # Return the contents of the generated image file as bytes
+        image_path = "development_map_with_basemap.jpg"
+        with open(image_path, "rb") as image_file:
+            return image_file.read()
     
 if __name__ == "__main__":
     eod = EyeOnDev()

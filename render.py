@@ -86,7 +86,7 @@ class RenderFeature:
         fig.savefig(OUT_JPG, dpi=300, bbox_inches='tight')
         plt.close(fig)
 
-        return({'image_url': "file:///Users/rob/Projects/eyeondev/{file}".format(file=OUT_JPG)})
+        return({'image_url': "/image".format(file=OUT_JPG)})
     
 if __name__ == "__main__":
     renderer = RenderFeature()

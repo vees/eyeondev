@@ -43,9 +43,21 @@ def eye_on_dev():
     result = eod.run_all(url, corrections)
     return jsonify(result)
 
+@app.route("/image")
+def serve_latest_image():
+    # Assuming EyeOnDev.output_image is the path to the latest generated JPG
+    eod = EyeOnDev()
+    image = eod.output_image()
+    return image, 200, {'Content-Type': 'image/jpeg'}
+ 
 @app.route("/")
-def index():
-    return jsonify({"status": "EyeOnDev API is running."})
+def serve_index_page():
+    # Return index.html
+    with open("index.html") as f:
+        return f.read()
+    return f.read(), 200, {'Content-Type': 'text/html'} 
+ 
+ 
 
 if __name__ == "__main__":
     app.run(debug=True)
