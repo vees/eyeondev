@@ -6,6 +6,7 @@ Combine: township border + development points + light basemap → JPG
 import json
 import geopandas as gpd
 import matplotlib
+import datetime
 """
 A crash was happening because on macOS the default GUI backend for Matplotlib 
 tries to open an NSWindow—and you’re running this in a background thread 
@@ -22,7 +23,7 @@ from matplotlib.offsetbox import AnchoredText
 plt.ioff()
 
 class RenderFeature:
-    def render(self):
+    def render(self, geocode_result=None):
         # ---------- Inputs ----------
         BOUNDARY_GEOJSON = "lower_salford_boundary.geojson"
         DEV_JSON         = "development_entries_geocoded.json"
@@ -33,9 +34,10 @@ class RenderFeature:
         # Boundary
         boundary_gdf = gpd.read_file(BOUNDARY_GEOJSON).to_crs(epsg=3857)
 
-        # Development entries (already geocoded)
-        with open(DEV_JSON, "r") as f:
-            dev_raw = json.load(f)
+        dev_raw = geocode_result or {}
+        if not dev_raw:
+            with open(DEV_JSON) as f:
+                dev_raw = json.load(f)
 
         records = []
         for category, entries in dev_raw.items():
@@ -75,8 +77,8 @@ class RenderFeature:
         ax.legend(title="Development Status", loc='lower right')
         ax.set_axis_off()
 
-
-        stamp = AnchoredText("Last updated: June 26, 2025", loc='lower left', prop=dict(size=8), frameon=True)
+        today = datetime.datetime.now().strftime("%B %d, %Y")
+        stamp = AnchoredText(f"Data from: June 26, 2025, Generated: {today}", loc='lower left', prop=dict(size=8), frameon=True)
         stamp.patch.set_alpha(0.7)
         ax.add_artist(stamp)
 
@@ -84,5 +86,9 @@ class RenderFeature:
         fig.savefig(OUT_JPG, dpi=300, bbox_inches='tight')
         plt.close(fig)
 
-        return({'result': "Saved to {file}".format(file=OUT_JPG)})
+        return({'image_url': "file:///Users/rob/Projects/eyeondev/{file}".format(file=OUT_JPG)})
     
+if __name__ == "__main__":
+    renderer = RenderFeature()
+    result = renderer.render()
+    print(result)

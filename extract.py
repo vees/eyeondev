@@ -4,9 +4,9 @@ import re
 import json
 
 class ExtractFeature:
-    def extract(self):
+    def extract(self, 
+                url="https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/"):
         # Step 1: Load the page
-        url = "https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/"
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")

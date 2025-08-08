@@ -9,23 +9,13 @@ class NominatimFeature:
 
     def __init__(self,
                  entries_file="development_entries.json",
-                 corrections_file="development_corrections.json",
                  output_file="development_entries_geocoded.json",
                  township_suffix="Lower Salford, PA 19438",
                  user_agent="LowerSalfordGeocoderBot/1.0 (your_email@example.com)"):
         self.entries_file = entries_file
-        self.corrections_file = corrections_file
         self.output_file = output_file
         self.township_suffix = township_suffix
         self.headers = {"User-Agent": user_agent}
-
-        # Load corrections and index by entry key
-        try:
-            with open(self.corrections_file) as cf:
-                corrections = json.load(cf)
-        except FileNotFoundError:
-            corrections = []
-        self.correction_map = {c["key"]: c for c in corrections}
 
     def geocode(self, address):
         """
@@ -40,13 +30,15 @@ class NominatimFeature:
                 return {"lat": float(results[0]["lat"]), "lon": float(results[0]["lon"])}
         return {"lat": None, "lon": None}
 
-    def geocode_all(self):
+    def geocode_all(self, entries=None, corrections=None):
         """
         Load entries, apply corrections, geocode missing coords, and save output.
         """
         # Load entries
         with open(self.entries_file) as ef:
             data = json.load(ef)
+
+        self.correction_map = {c["key"]: c for c in corrections}
 
         # Process each entry
         for category, entries in data.items():
@@ -80,7 +72,7 @@ class NominatimFeature:
         with open(self.output_file, "w") as of:
             json.dump(data, of, indent=2)
 
-        return {"result": f"Saved to {self.output_file}"}
+        return data
 
 if __name__ == "__main__":
     nf = NominatimFeature()

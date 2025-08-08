@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eye on Development Generator</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    label { display: block; margin: 10px 0 5px; font-weight: bold; }
+    input[type="text"], textarea { width: 100%; box-sizing: border-box; }
+    #resultImage { max-width: 100%; border: 1px solid #ccc; margin-top: 10px; }
+    #generate { margin-top: 10px; padding: 8px 16px; font-size: 1rem; }
+    .section { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Eye on Development Generator</h1>
+
+  <div class="section">
+    <label for="sourceUrl">Source URL</label>
+    <input id="sourceUrl" type="text"
+      value="https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/">
+  </div>
+
+  <div class="section">
+    <label for="corrections">Corrections JSON</label>
+    <textarea id="corrections" rows="8">
+[
+    {
+        "key": "0 Hoffman Rd (between 437 and 495 Hoffman Rd). Subdivision for 3 single-family homes.",
+        "latitude": 40.2535063, 
+        "longitude": -75.4134340
+    },
+    {
+        "key": "440-450 Hoffman Rd. Subdivision for 2 additional single-family homes.",
+        "latitude": 40.2528583, 
+        "longitude": -75.4146375
+    },
+    {
+        "key": "0 Morwood Rd (at 279 Fallowfield Ln). 2 lot subdivision.",
+        "address": "210 Morwood Rd"
+    },
+    {
+        "key": "0 Morris Rd (next to Lederach Post Office). Lederach Village Homes. 20 condos.",
+        "address": "690 Harleysville Pk"
+    },
+    {
+        "key": "0 Oak Dr (next to Harleysville Post Office). The Fields at Jacob’s Way. 43 homes consisting of townhouses and a single.",
+        "latitude": 40.28071, 
+        "longitude": -75.39947
+    },
+    {
+        "key": "0 Oak Dr (next to Harleysville Post Office). High Pointe at Salford. 62 homes consisting of twins and townhouses.",
+        "latitude": 40.27915, 
+        "longitude": -75.39714
+    },
+    {
+        "key": "130 Christopher Ln. 27,500 square-foot industrial building.", 
+        "latitude": 40.26611261094945, 
+        "longitude": -75.36337036152483
+    },
+    {
+        "key": "862 Harleysville Pk. Subdivision for 1 additional single-family home.",
+        "latitude": 40.24725263054819, 
+        "longitude": -75.40279160869966
+    }
+]
+    </textarea>
+  </div>
+
+  <button id="generate">Generate</button>
+  <span id="loading" style="margin-left:10px; display:none;">Please wait...</span>
+  <div class="section">
+    <h2>Result Image</h2>
+    <img id="resultImage" alt="Generated Map" />
+  </div>
+
+  <div class="section">
+    <h2>API Response JSON</h2>
+    <textarea id="output" rows="8" readonly></textarea>
+  </div>
+
+  <script>
+    document.getElementById('generate').addEventListener('click', async () => {
+      const loadingEl = document.getElementById('loading');
+      loadingEl.style.display = 'inline';
+      const url = document.getElementById('sourceUrl').value.trim();
+      const corrText = document.getElementById('corrections').value;
+      let corrections;
+      try {
+        corrections = JSON.parse(corrText);
+      } catch (err) {
+        loadingEl.style.display = 'none';
+        alert('Invalid JSON in corrections field.');
+        return;
+      }
+
+      const payload = { source_url: url, corrections: corrections };
+      let response;
+      try {
+        console.log(payload)
+        response = await fetch('http://localhost:5000/eye', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        loadingEl.style.display = 'none';
+        alert('Network error: ' + err);
+        return;
+      }
+
+      if (!response.ok) {
+        loadingEl.style.display = 'none';
+        alert('Server error: ' + response.statusText);
+        return;
+      }
+
+      const data = await response.json();
+      document.getElementById('output').value = JSON.stringify(data, null, 2);
+
+      // Display image: either base64 or URL
+      const imgEl = document.getElementById('resultImage');
+      if (data.image_base64) {
+        imgEl.src = 'data:image/jpeg;base64,' + data.image_base64;
+      } else if (data.image_url) {
+        imgEl.src = data.image_url;
+      }
+    });
+  </script>
+</body>
+</html>
