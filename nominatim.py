@@ -1,10 +1,11 @@
 import json
 import requests
 import time
+import os
 
 class NominatimFeature:
     """
-    Geocoding helper using OSM Nominatim, with support for manual corrections.
+    Geocoding helper using OSM Nominatim, with support for manual corrections and caching.
     """
 
     def __init__(self,
@@ -17,10 +18,19 @@ class NominatimFeature:
         self.township_suffix = township_suffix
         self.headers = {"User-Agent": user_agent}
 
-    def geocode(self, address):
+    def geocode(self, address, cache=None):
         """
-        Query Nominatim for a given address.
+        Query Nominatim for a given address, using cache if available.
         """
+        # Try cache first
+        if cache:
+            for cached_entry in cache.values():
+                if cached_entry.get("address") == address and \
+                   cached_entry.get("latitude") is not None and \
+                   cached_entry.get("longitude") is not None:
+                    print(f"Used cached geocode for '{address}': {cached_entry['latitude']}, {cached_entry['longitude']}")
+                    return {"lat": cached_entry["latitude"], "lon": cached_entry["longitude"]}
+        # Otherwise, geocode
         url = "https://nominatim.openstreetmap.org/search"
         params = {"q": address, "format": "json", "addressdetails": 0, "limit": 1}
         resp = requests.get(url, params=params, headers=self.headers)
@@ -30,17 +40,28 @@ class NominatimFeature:
                 return {"lat": float(results[0]["lat"]), "lon": float(results[0]["lon"])}
         return {"lat": None, "lon": None}
 
-    def geocode_all(self, entries=None, corrections=None):
+    def geocode_all(self, entries=[], corrections=[]):
         """
         Load entries, apply corrections, geocode missing coords, and save output.
+        Uses cached geocoded results if available for matching keys.
         """
-        # Load entries
+        # Load geocoded cache if available
+        geocoded_cache = {}
+        if os.path.exists(self.output_file):
+            with open(self.output_file) as of:
+                cached_data = json.load(of)
+                for category, cached_entries in cached_data.items():
+                    for entry in cached_entries:
+                        key = entry.get("key")
+                        if key:
+                            geocoded_cache[key] = entry
+
+        # Load current entries
         with open(self.entries_file) as ef:
             data = json.load(ef)
 
         self.correction_map = {c["key"]: c for c in corrections}
 
-        # Process each entry
         for category, entries in data.items():
             for entry in entries:
                 key = entry.get("key")
@@ -53,16 +74,25 @@ class NominatimFeature:
                     print(f"Applied manual coords for '{key}': {entry['latitude']}, {entry['longitude']}")
                     continue
 
+                # If cached geocoded coords for this key, use them
+                cached = geocoded_cache.get(key)
+                if cached and cached.get("latitude") is not None and cached.get("longitude") is not None:
+                    entry["latitude"] = cached["latitude"]
+                    entry["longitude"] = cached["longitude"]
+                    entry["address"] = cached.get("address", entry.get("address"))
+                    print(f"Used cached coords for '{key}': {entry['latitude']}, {entry['longitude']}")
+                    continue
+
                 # If manual address override, apply it
                 if corr.get("address"):
                     orig = entry.get("address")
                     entry["address"] = corr["address"]
                     print(f"Overrode address for '{key}': '{orig}' -> '{entry['address']}'")
 
-                entry["address"] = f"{entry["address"]} {self.township_suffix}"
+                entry["address"] = f"{entry['address']} {self.township_suffix}"
 
-                # Geocode using Nominatim
-                coords = self.geocode(entry["address"])
+                # Geocode using Nominatim (with cache by address)
+                coords = self.geocode(entry["address"], cache=geocoded_cache)
                 entry["latitude"] = coords.get("lat")
                 entry["longitude"] = coords.get("lon")
                 print(f"Geocoded: {entry['address']} -> {coords}")
