@@ -4,6 +4,7 @@ from nominatim import NominatimFeature
 from extract import ExtractFeature
 from render import RenderFeature
 from eye import EyeOnDev
+import os
 
 app = Flask(__name__)
 
@@ -60,4 +61,4 @@ def serve_index_page():
  
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
