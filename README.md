@@ -30,3 +30,6 @@ The resulting file should look something like the included sample below:
 
 ![Development Map with Basemap](sample_map.jpg)
 
+## Troubleshooting Notes
+
+On Mac OS the `pyproj` library may require running `brew install proj` first. If Homebrew is not installed, consult the installation instructions for that.

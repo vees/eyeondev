@@ -1,0 +1,5 @@
+env
+development_entries_geocoded.json
+development_entries.json
+development_map_with_basemap.jpg
+*.pyc

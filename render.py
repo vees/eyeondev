@@ -5,67 +5,84 @@ Combine: township border + development points + light basemap → JPG
 
 import json
 import geopandas as gpd
+import matplotlib
+"""
+A crash was happening because on macOS the default GUI backend for Matplotlib 
+tries to open an NSWindow—and you’re running this in a background thread 
+(or without a real display), so AppKit refuses. For a headless/cron‐style 
+render (just writing out a JPG), the simplest fix is to switch Matplotlib 
+to a non‐GUI (“Agg”) backend.
+"""
+matplotlib.use('Agg')       # use the Anti-Grain Geometry backend — no GUI
 import matplotlib.pyplot as plt
 from shapely.geometry import Point
 import contextily as ctx
 from matplotlib.offsetbox import AnchoredText
 
-# ---------- Inputs ----------
-BOUNDARY_GEOJSON = "lower_salford_boundary.geojson"
-DEV_JSON         = "development_entries_geocoded.json"
-OUT_JPG          = "development_map_with_basemap.jpg"
-ZOOM             = 14  # 13–16 are good for township scale
+plt.ioff()
 
-# ---------- Load data ----------
-# Boundary
-boundary_gdf = gpd.read_file(BOUNDARY_GEOJSON).to_crs(epsg=3857)
+class RenderFeature:
+    def render(self):
+        # ---------- Inputs ----------
+        BOUNDARY_GEOJSON = "lower_salford_boundary.geojson"
+        DEV_JSON         = "development_entries_geocoded.json"
+        OUT_JPG          = "development_map_with_basemap.jpg"
+        ZOOM             = 14  # 13–16 are good for township scale
 
-# Development entries (already geocoded)
-with open(DEV_JSON, "r") as f:
-    dev_raw = json.load(f)
+        # ---------- Load data ----------
+        # Boundary
+        boundary_gdf = gpd.read_file(BOUNDARY_GEOJSON).to_crs(epsg=3857)
 
-records = []
-for category, entries in dev_raw.items():
-    for e in entries:
-        lat, lon = e.get("latitude"), e.get("longitude")
-        if lat is None or lon is None:
-            continue
-        records.append({
-            "category": category,
-            "address": e["address"],
-            "description": e["description"],
-            "geometry": Point(lon, lat)
-        })
+        # Development entries (already geocoded)
+        with open(DEV_JSON, "r") as f:
+            dev_raw = json.load(f)
 
-gdf_points = gpd.GeoDataFrame(records, crs="EPSG:4326").to_crs(epsg=3857)
+        records = []
+        for category, entries in dev_raw.items():
+            for e in entries:
+                lat, lon = e.get("latitude"), e.get("longitude")
+                if lat is None or lon is None:
+                    continue
+                records.append({
+                    "category": category,
+                    "address": e["address"],
+                    "description": e["description"],
+                    "geometry": Point(lon, lat)
+                })
 
-# ---------- Plot ----------
-fig, ax = plt.subplots(figsize=(10, 10))
+        gdf_points = gpd.GeoDataFrame(records, crs="EPSG:4326").to_crs(epsg=3857)
 
-# Set extent BEFORE adding tiles so contextily knows what to fetch
-xmin, ymin, xmax, ymax = boundary_gdf.total_bounds
-ax.set_xlim(xmin, xmax)
-ax.set_ylim(ymin, ymax)
+        # ---------- Plot ----------
+        fig, ax = plt.subplots(figsize=(10, 10))
 
-# Basemap (underlay)
-ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron, attribution=False, zoom=ZOOM)
+        # Set extent BEFORE adding tiles so contextily knows what to fetch
+        xmin, ymin, xmax, ymax = boundary_gdf.total_bounds
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
 
-# Boundary (outline)
-boundary_gdf.boundary.plot(ax=ax, edgecolor='black', linewidth=1)
+        # Basemap (underlay)
+        ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron, attribution=False, zoom=ZOOM)
 
-# Points by category
-for cat, grp in gdf_points.groupby("category"):
-    grp.plot(ax=ax, marker='o', alpha=0.85, label=cat)
+        # Boundary (outline)
+        boundary_gdf.boundary.plot(ax=ax, edgecolor='black', linewidth=1)
 
-# Cosmetics
-ax.set_title("Lower Salford Township - Eye on Development", fontsize=16)
-ax.legend(title="Development Status", loc='lower right')
-ax.set_axis_off()
+        # Points by category
+        for cat, grp in gdf_points.groupby("category"):
+            grp.plot(ax=ax, marker='o', alpha=0.85, label=cat)
+
+        # Cosmetics
+        ax.set_title("Lower Salford Township - Eye on Development", fontsize=16)
+        ax.legend(title="Development Status", loc='lower right')
+        ax.set_axis_off()
 
 
-stamp = AnchoredText("Last updated: June 26, 2025", loc='lower left', prop=dict(size=8), frameon=True)
-stamp.patch.set_alpha(0.7)
-ax.add_artist(stamp)
+        stamp = AnchoredText("Last updated: June 26, 2025", loc='lower left', prop=dict(size=8), frameon=True)
+        stamp.patch.set_alpha(0.7)
+        ax.add_artist(stamp)
 
-# ---------- Save ----------
-fig.savefig(OUT_JPG, dpi=300, bbox_inches='tight')
+        # ---------- Save ----------
+        fig.savefig(OUT_JPG, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+
+        return({'result': "Saved to {file}".format(file=OUT_JPG)})
+    
