@@ -84,3 +84,8 @@ class ExtractFeature:
             json.dump(categories, f, indent=2)
 
         return(categories)
+
+if __name__ == "__main__":
+    extractor = ExtractFeature()
+    result = extractor.extract()
+    print(json.dumps(result, indent=2))
