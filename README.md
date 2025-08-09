@@ -1,35 +1,113 @@
 # Eye on Development
 
-## Overview 
+## Overview
 
-These scripts will scrape the Lower Salford Township page [Eye on Development](https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/) for locations in various states of the process of devlopment, make a best-effort attempt at GPS location, and render a map of the township with borders and basemap tiles including marked locations of development color coded by process stage.
+**Eye on Development** is a toolset and API for visualizing development activity in Lower Salford Township, PA.  
+It scrapes the [Eye on Development](https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/) page, geocodes locations, and renders a map with color-coded markers by process stage.  
+You can use it as a command-line tool, as a REST API, or run it as a Docker container.
 
-## How to Use
+---
 
-Using Python 3:
+## Features
 
-Load necessary modules from `requirements.txt` with
+- **Web Scraping:** Extracts development entries from the township website.
+- **Geocoding:** Uses OpenStreetMap Nominatim to get GPS coordinates.
+- **Map Rendering:** Produces a JPG map with township borders, basemap tiles, and development markers.
+- **REST API:** Exposes endpoints for integration and automation.
+- **Docker Support:** Run the entire stack in a container.
 
-`pip install -r requirements.txt`
+---
 
-Use Python 3 to run the following files:
+## Usage
 
-`python3 extract.py > development_entries.json` 
+### 1. Command Line
 
-This will scrape the Eye on Development page and save to a file called `development_entries.json`.
+Install dependencies:
 
-`python3 nominatim.py`
+```sh
+pip install -r requirements.txt
+```
 
-This will load the file `development_entries.json` and politely request the longitude and latitude of the addresses inside it from nominatim.openstreetmap.org. It will output file with this information to `development_entries_geocoded.json`.
+**Extract entries:**
+```sh
+python3 extract.py > development_entries.json
+```
 
-`python3 render.py`
+**Geocode entries:**
+```sh
+python3 nominatim.py
+```
 
-This will load the file `lower_salford_boundary.geojson` (included in this repository or you can grab from https://overpass-turbo.eu/ using the `overpass.txt` file) and `development_entries_geocoded.json` and combine the two into a JPG output of `development_map_with_basemap.jpg`.
+**Render map:**
+```sh
+python3 render.py
+```
 
-The resulting file should look something like the included sample below:
+The final map will be saved as `development_map_with_basemap.jpg`.
+
+---
+
+### 2. API Server
+
+Start the API server (example with Flask):
+
+```sh
+python3 app.py
+```
+
+**Endpoints:**
+
+- `POST /eye`  
+  Accepts JSON with `source_url` and `corrections`, returns geocoded data and a generated map (as base64 or URL).
+
+- `GET /image`  
+  Returns the latest generated map JPG.
+
+- `GET /`  
+  Returns the interactive UI index page.
+
+---
+
+### 3. Docker
+
+Build and run the container:
+
+```sh
+docker build -t eyeondev .
+docker run -p 8080:8080 eyeondev
+```
+
+The API will be available at `http://localhost:8080`.
+
+---
+
+## Example Output
 
 ![Development Map with Basemap](sample_map.jpg)
 
-## Troubleshooting Notes
+---
 
-On Mac OS the `pyproj` library may require running `brew install proj` first. If Homebrew is not installed, consult the installation instructions for that.
+## Troubleshooting
+
+- On macOS, you may need to install `proj` for `pyproj`:
+  ```sh
+  brew install proj
+  ```
+
+---
+
+## Files
+
+- `extract.py` — Scrapes development entries.
+- `nominatim.py` — Geocodes entries.
+- `render.py` — Renders the map.
+- `app.py` — API server.
+- `Dockerfile` — Container build.
+- `lower_salford_boundary.geojson` — Township boundary.
+- `requirements.txt` — Python dependencies.
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.

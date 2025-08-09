@@ -22,6 +22,14 @@
       value="https://www.lowersalfordtownship.org/departments/building-zoning/eye-on-development/">
   </div>
 
+
+  <button id="generate">Generate Map</button>
+  <span id="loading" style="margin-left:10px; display:none;">Please wait...</span>
+  <div class="section">
+    <h2>Result Image</h2>
+    <img id="resultImage" alt="Generated Map" />
+  </div>
+
   <div class="section">
     <label for="corrections">Corrections JSON</label>
     <textarea id="corrections" rows="8">
@@ -66,13 +74,6 @@
     }
 ]
     </textarea>
-  </div>
-
-  <button id="generate">Generate</button>
-  <span id="loading" style="margin-left:10px; display:none;">Please wait...</span>
-  <div class="section">
-    <h2>Result Image</h2>
-    <img id="resultImage" alt="Generated Map" />
   </div>
 
   <div class="section">
