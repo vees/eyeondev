@@ -11,15 +11,17 @@ class ExtractFeature:
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Step 2: Navigate to the structured content block
-        content = soup.select_one("div#a-content div#c-article div.grid-wide.grid-content")
+        # Step 2: Navigate to the new content block
+        content = soup.select_one("div.row.grid-row div.grid-wide.grid-content")
+        if not content:
+            raise Exception("Could not find main content block.")
 
-        # Step 3: Define categories and containers
+        # Step 3: Define categories
         categories = {
-            "A. Under Review: Planning Commission": [],
-            "A. Under Review: Board of Supervisors": [],
-            "B. Approved": [],
-            "C. Under Construction": []
+            "Under Review: Planning Commission": [],
+            "Under Review: Board of Supervisors": [],
+            "Approved": [],
+            "Under Construction": []
         }
 
         # Step 4: Address parsing helper
@@ -45,45 +47,51 @@ class ExtractFeature:
                     "description": text.strip()
                 }
 
-        # Step 5: Parse sections
-        current_category = None
-        for tag in content.find_all(['p', 'ul']):
-            text = tag.get_text(strip=True)
-
-            if text.startswith("A. Under Review"):
-                current_category = "A. Under Review: Planning Commission"
-                continue
-            elif text.startswith("B") and "Approved" in text:
-                current_category = "B. Approved"
-                continue
-            elif text.startswith("C") and "Under Construction" in text:
-                current_category = "C. Under Construction"
-                continue
-
-            if tag.name == 'ul' and current_category:
-                for li in tag.find_all('li', recursive=False):
-                    subitems = li.find_all('li')
-                    if subitems:
-                        label = li.find('strong')
-                        if label and "Supervisor" in label.get_text():
-                            current_category = "A. Under Review: Board of Supervisors"
-                        elif label and "Planning" in label.get_text():
-                            current_category = "A. Under Review: Planning Commission"
-
-                        for subli in subitems:
-                            entry = subli.get_text(strip=True)
-                            categories[current_category].append(split_entry(entry))
-                    else:
-                        entry = li.get_text(strip=True)
-                        categories[current_category].append(split_entry(entry))
+        # Step 5: Parse the new structure
+        # Find all <ol> blocks directly under grid-content
+        ols = content.find_all("ol", recursive=False)
+        for ol in ols:
+            # Each <li> in top-level <ol> is a category
+            for li in ol.find_all("li", recursive=False):
+                strong = li.find("strong")
+                if not strong:
+                    continue
+                category_text = strong.get_text(strip=True)
+                # Under Review is special: has subcategories
+                if "Under Review" in category_text:
+                    ul = li.find("ul")
+                    if ul:
+                        for subli in ul.find_all("li", recursive=False):
+                            substrong = subli.find("strong")
+                            if not substrong:
+                                continue
+                            subcat_text = substrong.get_text(strip=True)
+                            subol = subli.find("ol")
+                            if subol:
+                                for entry_li in subol.find_all("li", recursive=False):
+                                    entry = entry_li.get_text(strip=True)
+                                    if "Planning Commission" in subcat_text:
+                                        categories["Under Review: Planning Commission"].append(split_entry(entry))
+                                    elif "Board of Supervisors" in subcat_text:
+                                        categories["Under Review: Board of Supervisors"].append(split_entry(entry))
+                elif "Approved" in category_text:
+                    ul = li.find("ul")
+                    if ul:
+                        for entry_li in ul.find_all("li", recursive=False):
+                            entry = entry_li.get_text(strip=True)
+                            categories["Approved"].append(split_entry(entry))
+                elif "Under Construction" in category_text:
+                    ul = li.find("ul")
+                    if ul:
+                        for entry_li in ul.find_all("li", recursive=False):
+                            entry = entry_li.get_text(strip=True)
+                            categories["Under Construction"].append(split_entry(entry))
 
         # Step 6: Output structured JSON
-        # return(json.dumps(categories, indent=2))
-
         with open("development_entries.json", "w") as f:
             json.dump(categories, f, indent=2)
 
-        return(categories)
+        return categories
 
 if __name__ == "__main__":
     extractor = ExtractFeature()

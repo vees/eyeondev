@@ -78,7 +78,7 @@ class RenderFeature:
         ax.set_axis_off()
 
         today = datetime.datetime.now().strftime("%B %d, %Y")
-        stamp = AnchoredText(f"Data from: June 26, 2025, Generated: {today}", loc='lower left', prop=dict(size=8), frameon=True)
+        stamp = AnchoredText(f"Data from: August 15, 2025, Generated: {today}", loc='lower left', prop=dict(size=8), frameon=True)
         stamp.patch.set_alpha(0.7)
         ax.add_artist(stamp)
 
